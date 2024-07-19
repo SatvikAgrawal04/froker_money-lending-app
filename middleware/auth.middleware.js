@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import User from "../models/user.model.js";
 
 const verifyJWT = async (req, res, next) => {
   try {
@@ -27,3 +27,5 @@ const verifyJWT = async (req, res, next) => {
     throw new ApiError(401, error?.message || "Invalid Access Token");
   }
 };
+
+export default verifyJWT;

@@ -10,6 +10,19 @@ const calculateAge = (dob) => {
   return age;
 };
 
+// function to convert date string to dd-mm-yyyy foramat
+function formatDate(dateString) {
+  const date = new Date(dateString);
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  const formattedDate = `${day}-${month}-${year}`;
+
+  return formattedDate;
+}
+
 //Function to generate access token and refresh token from user id
 const generateAccessAndRefreshToken = async (userId) => {
   console.log("generating tokens...");
@@ -25,13 +38,10 @@ const generateAccessAndRefreshToken = async (userId) => {
 
     return { accessToken, refreshToken };
   } catch (error) {
-    // throw new ApiError(
-    //   500,
-    //   "something went wrong while generating request and access token"
-    // );
-    res.status(500).json({
-      message: error.message,
-    });
+    throw new ApiError(
+      500,
+      "something went wrong while generating request and access token"
+    );
   }
 };
 
@@ -64,45 +74,26 @@ const signup = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-
-  console.log(req.body);
-
-  /*
-  {
-    "phoneNumber": "3428234234",
-    "email": "bkjsabf@bkajsf.com",
-    "name": "John Doe",
-    "dob": "12/11/1981",
-    "monthlySalary": 30000,
-    "password": "abc123"
-}
-  */
 };
 
 //LOGIN API
 const login = async (req, res) => {
   const { email, password } = req.body;
-  console.log(email, password);
   if (!email) {
-    // console.log("Email not provided");
     throw new ApiError(400, "Email is required");
   }
   const user = await User.findOne({ email });
   if (!user) {
-    // console.log("User not found");
     throw new ApiError(404, "User not found");
   }
 
   const isCorrect = await bcrypt.compare(password, user.password);
   if (!isCorrect) {
     throw new ApiError(400, "Invalid Password");
-    // console.log("Invalid Password");
   }
-  console.log("password verified");
   const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
     user._id
   );
-  console.log(`access token:${accessToken}\nrefresh token: ${refreshToken}`);
 
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
@@ -132,8 +123,29 @@ const login = async (req, res) => {
 
 const getUserData = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
-    res.status(200).json(user);
+    const user = await User.findById(req.user._id).select(
+      "-password -refreshToken"
+    );
+    const {
+      purchasePower,
+      phoneNumber,
+      email,
+      dateOfRegistration,
+      dob,
+      monthlySalary,
+    } = user;
+
+    const Date_of_Registration = formatDate(dateOfRegistration);
+    const DOB = formatDate(dob);
+
+    res.status(200).json({
+      purchasePower,
+      phoneNumber,
+      email,
+      Date_of_Registration,
+      DOB,
+      monthlySalary,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
