@@ -1,13 +1,22 @@
 import dotenv, { config } from "dotenv";
 import mongoose from "mongoose";
 import express from "express";
+import userRouter from "./routes/user.routes.js";
+import bodyParser from "body-parser";
+import cookieParser from "cookie-parser";
 
 dotenv.config({
   path: "./.env",
 });
 
 const app = express();
+app.use(bodyParser.json());
+app.use(cookieParser());
 
+//ROUTES
+app.use("/api", userRouter);
+
+// MONGOOSE CONNECTION
 const connectDB = async () => {
   try {
     const connectionInstance = await mongoose.connect(
