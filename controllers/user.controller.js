@@ -120,7 +120,6 @@ const login = async (req, res) => {
 };
 
 // SHOW USER DATA API
-
 const getUserData = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
@@ -151,4 +150,20 @@ const getUserData = async (req, res) => {
   }
 };
 
-export { signup, login, getUserData };
+// BORROW MONEY API
+const borrowMoney = async (req, res) => {
+  const { amount, tenure } = req.body;
+  const user = await User.findById(req.user._id);
+  const interest = 0.08;
+  const monthlyRepayment = (amount * (1 + interest)) / tenure;
+  user.purchasePower -= amount;
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    message: "Money borrowed Successfully",
+    purchasePower: user.purchasePower,
+    monthlyRepayment,
+  });
+};
+
+export { signup, login, getUserData, borrowMoney };
