@@ -10,7 +10,7 @@ const calculateAge = (dob) => {
   return age;
 };
 
-// function to convert date string to dd-mm-yyyy foramat
+// function to convert date string to dd-mm-yyyy format
 function formatDate(dateString) {
   const date = new Date(dateString);
 
@@ -50,9 +50,10 @@ const signup = async (req, res) => {
   const { phoneNumber, email, name, dob, monthlySalary, password } = req.body;
 
   const age = calculateAge(dob);
-  if (age <= 20) throw new ApiError(400, "User must be above 20 years old");
+  if (age <= 20)
+    res.status(200).json({ message: "You must be older than 20 to sign up." });
   if (monthlySalary < 25000)
-    throw new ApiError(400, "Monthly Salary must be at least 25000");
+    res.status(200).json({ message: "Monthly salary must be at least 25000" });
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -164,6 +165,48 @@ const borrowMoney = async (req, res) => {
     purchasePower: user.purchasePower,
     monthlyRepayment,
   });
+};
+
+// REFRESH ACCESS TOKEN
+
+const refreshAccessToken = async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    res.status(401).json({ message: "unauthorized request" });
+    throw new ApiError(401, "No refresh token provided");
+  }
+
+  const decodedToken = jwt.verify(
+    incomingRefreshToken,
+    process.env.REFRESH_TOKEN_SECRET
+  );
+
+  const user = await User.findById(decodedToken?._id);
+
+  if (!user) {
+    throw new ApiError(401, "Invalid Refresh Token");
+  }
+
+  if (incomingRefreshToken !== user?.refreshToken) {
+    throw new ApiError(401, "Invalid Refresh Token");
+  }
+
+  const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(
+    user._id
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", newRefreshToken, options)
+    .json(accessToken, newRefreshToken);
 };
 
 export { signup, login, getUserData, borrowMoney };
