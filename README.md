@@ -78,3 +78,27 @@ Functionality:
 ### Login failed with invalid password
 
 <img src="images/login-failed-invalid-password.png">
+
+### Get User Data
+
+Endpoint `POST /api/user`
+
+Functionality:
+
+- Shows user data as per the requirement
+
+used a middleware to ensure authorization using JWT token
+
+<img src="images/show-user-data.png">
+
+### Borrow Money
+
+Endpoint `POST /api/borrow`
+
+Functionality:
+
+- Allow the user to borrow money from the application.
+
+used a middleware to ensure authorization using JWT token
+
+<img src="images/borrow-money.png">
