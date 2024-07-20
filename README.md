@@ -41,3 +41,4 @@ Validation Criteria:
 
 Response for Succesful SignUp
 [screenshot](images/Signup-fail-age.png)
+<img src="images/Signup-fail-age.png">
