@@ -39,6 +39,11 @@ Validation Criteria:
 * User should be above 20 years of age
 * User should have at least 25000 monthly salary
 
-Response for Succesful SignUp
-[screenshot](images/Signup-fail-age.png)
-<img src="images/Signup-fail-age.png">
+### Response for Succesful SignUp
+<img src="images/Signup-success.png">
+
+### Response for SignUp fail due to Age Error
+<img src="images/Signup-fail-age.png">  
+
+### Response for SignUp fail due to Salary Error
+<img src="images/Signup-fail-salary.png">
