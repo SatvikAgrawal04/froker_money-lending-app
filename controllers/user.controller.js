@@ -1,7 +1,6 @@
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { ApiError } from "../utils/ApiError.js";
 
 //Function to calculate age
 const calculateAge = (dob) => {
@@ -25,13 +24,10 @@ function formatDate(dateString) {
 
 //Function to generate access token and refresh token from user id
 const generateAccessAndRefreshToken = async (userId) => {
-  console.log("generating tokens...");
   try {
     const user = await User.findById(userId);
-    console.log(user);
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
-    console.log(accessToken, refreshToken);
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
@@ -108,14 +104,11 @@ const login = async (req, res) => {
       "-password -refreshToken"
     );
 
-    console.log(loggedInUser);
-
     const options = {
       httpOnly: true,
       secure: true,
     };
 
-    console.log("created options");
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)

@@ -51,7 +51,6 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.methods.generateAccessToken = function () {
-  console.log("generating access token...");
   const accessToken = jwt.sign(
     {
       _id: this._id,
@@ -61,7 +60,6 @@ userSchema.methods.generateAccessToken = function () {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
     }
   );
-  console.log(accessToken);
   return accessToken;
 };
 
