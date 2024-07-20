@@ -38,10 +38,9 @@ const generateAccessAndRefreshToken = async (userId) => {
 
     return { accessToken, refreshToken };
   } catch (error) {
-    throw new ApiError(
-      500,
-      "something went wrong while generating request and access token"
-    );
+    res
+      .status(500)
+      .json({ message: "Error occurred while generating tokens", error });
   }
 };
 
@@ -50,10 +49,15 @@ const signup = async (req, res) => {
   const { phoneNumber, email, name, dob, monthlySalary, password } = req.body;
 
   const age = calculateAge(dob);
-  if (age <= 20)
+  if (age <= 20) {
     res.status(200).json({ message: "You must be older than 20 to sign up." });
-  if (monthlySalary < 25000)
+    return;
+  }
+
+  if (monthlySalary < 25000) {
     res.status(200).json({ message: "Monthly salary must be at least 25000" });
+    return;
+  }
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -73,51 +77,58 @@ const signup = async (req, res) => {
       .status(200)
       .json({ message: "User registered successfully", user: newUser });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Error During SignUp", error });
   }
 };
 
 //LOGIN API
 const login = async (req, res) => {
-  const { email, password } = req.body;
-  if (!email) {
-    throw new ApiError(400, "Email is required");
+  try {
+    const { email, password } = req.body;
+    if (!email) {
+      res.status(400).json({ message: "Email is required" });
+      return;
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      res.status(404).json({ message: "User not Found" });
+      return;
+    }
+
+    const isCorrect = await bcrypt.compare(password, user.password);
+    if (!isCorrect) {
+      res.status(400).json({ message: "Invalid Password" });
+      return;
+    }
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+      user._id
+    );
+
+    const loggedInUser = await User.findById(user._id).select(
+      "-password -refreshToken"
+    );
+
+    console.log(loggedInUser);
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    console.log("created options");
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json({
+        user: loggedInUser,
+        accessToken,
+        refreshToken,
+        message: "User logged in successfully",
+      });
+  } catch (error) {
+    res.status(500).json({ message: "Error during login", error });
   }
-  const user = await User.findOne({ email });
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-
-  const isCorrect = await bcrypt.compare(password, user.password);
-  if (!isCorrect) {
-    throw new ApiError(400, "Invalid Password");
-  }
-  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
-    user._id
-  );
-
-  const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
-
-  console.log(loggedInUser);
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-
-  console.log("created options");
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json({
-      user: loggedInUser,
-      accessToken,
-      refreshToken,
-      message: "User logged in successfully",
-    });
 };
 
 // SHOW USER DATA API
@@ -153,60 +164,71 @@ const getUserData = async (req, res) => {
 
 // BORROW MONEY API
 const borrowMoney = async (req, res) => {
-  const { amount, tenure } = req.body;
-  const user = await User.findById(req.user._id);
-  const interest = 0.08;
-  const monthlyRepayment = (amount * (1 + interest)) / tenure;
-  user.purchasePower -= amount;
-  await user.save({ validateBeforeSave: false });
+  try {
+    const { amount, tenure } = req.body;
+    const user = await User.findById(req.user._id);
+    const interest = 0.08;
+    const monthlyRepayment = (amount * (1 + interest)) / tenure;
+    user.purchasePower -= amount;
+    await user.save({ validateBeforeSave: false });
 
-  res.status(200).json({
-    message: "Money borrowed Successfully",
-    purchasePower: user.purchasePower,
-    monthlyRepayment,
-  });
+    res.status(200).json({
+      message: "Money borrowed Successfully",
+      newPurchasePower: user.purchasePower,
+      monthlyRepayment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error During borrowing money", error });
+  }
 };
 
 // REFRESH ACCESS TOKEN
 
 const refreshAccessToken = async (req, res) => {
-  const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+  try {
+    const incomingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
 
-  if (!incomingRefreshToken) {
-    res.status(401).json({ message: "unauthorized request" });
-    throw new ApiError(401, "No refresh token provided");
+    if (!incomingRefreshToken) {
+      res.status(401).json({ message: "unauthorized request" });
+      return;
+    }
+
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+
+    if (!user) {
+      res.status(401).json({ message: "Invalid Refresh Token" });
+      return;
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+      res.status(401).json({ message: "Invalid Refresh Token" });
+      return;
+    }
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessAndRefreshToken(user._id);
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(accessToken, newRefreshToken);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error occurred while refreshing token", error });
   }
-
-  const decodedToken = jwt.verify(
-    incomingRefreshToken,
-    process.env.REFRESH_TOKEN_SECRET
-  );
-
-  const user = await User.findById(decodedToken?._id);
-
-  if (!user) {
-    throw new ApiError(401, "Invalid Refresh Token");
-  }
-
-  if (incomingRefreshToken !== user?.refreshToken) {
-    throw new ApiError(401, "Invalid Refresh Token");
-  }
-
-  const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(
-    user._id
-  );
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", newRefreshToken, options)
-    .json(accessToken, newRefreshToken);
 };
 
 export { signup, login, getUserData, borrowMoney };
